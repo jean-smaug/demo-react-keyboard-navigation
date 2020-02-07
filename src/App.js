@@ -2,30 +2,51 @@ import React from "react";
 
 const Context = React.createContext(null)
 
-const Child = () => {
-  const { text, value } = React.useContext(Context)
-
-  return React.useMemo(() => {
+function withContext(Component) {
+  return function WrappedContext(props) {
     return (
-      <span>{text}</span>
+    <Context.Consumer>
+      {(context) => <Component {...props} {...context} />}
+    </Context.Consumer>
     )
-  }, [value])
+  }
+}
+
+const Child = withContext((props) => {
+  return (
+    <span>{props.counter}</span>
+  )
+})
+
+const Button = React.memo(() => {
+  console.log('button')
+  return <button>Click</button>
+})
+
+function handleClick () {
+  console.log('aze')
 }
 
 function App() {
+  console.log('App')
+  const [counter, setCounter] = React.useState(10);
   const [text, setText] = React.useState("");
-  const [value, setValue] = React.useState(0);
-  
 
-  function setRandomValue() {
-    setValue(Math.random())
-  }
+  React.useEffect(() => {
+    const intervalId = setInterval(() => {
+      setCounter(counter => counter - 1)
+    }, 1000)
+
+    return () => {
+      clearInterval(intervalId)
+    }
+  }, [])
 
   return (
-    <Context.Provider value={{ text, value }}>
-      <button onClick={setRandomValue}>Validate</button>
+    <Context.Provider value={{ counter, text }}>
       <input value={text} onChange={e => setText(e.target.value)} />
       <Child />
+      <Button onClick={handleClick} />
     </Context.Provider>
   );
 }
