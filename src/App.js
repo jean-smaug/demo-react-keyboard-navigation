@@ -2,53 +2,81 @@ import React from "react";
 
 const Context = React.createContext(null)
 
-function withContext(Component) {
-  return function WrappedContext(props) {
+const allowdedKeys = ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"]
+
+function NavigationProvider(props) {
+  const [focusedItem, setFocusedItem] = React.useState("")
+  const [keys, setKeys] = React.useState([])
+
+  function registerKey(newKey) {
+    setKeys([...keys, newKey])
+  }
+
+  React.useEffect(() => {
+    function handleKeyDown(e) {
+      if(!allowdedKeys.includes(e.key)) return
+
+      console.log(e.key)
+    }
+
+    document.addEventListener("keydown", handleKeyDown)
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown)
+    }
+  }, [])
+
+  return React.useMemo(() => (
+    <Context.Provider value={{ focus: focusedItem, setFocusedItem, registerKey }}>
+      {props.children}
+    </Context.Provider>
+  ), [])
+}
+
+function withNavigation(Component) {
+  return function (props) {
     return (
-    <Context.Consumer>
-      {(context) => <Component {...props} {...context} />}
-    </Context.Consumer>
+      <Context.Consumer>
+        {
+          context => {
+            function capitalize(str) {
+              return str[0].toUpperCase().concat(str.slice(1, str.length))
+            }
+
+            const name = props.name
+            const handlers = Object.keys(props).filter(prop => allowdedKeys.includes(`Arrow${capitalize(prop)}`))
+            context.registerKey({ name })
+            // console.log(context)
+            // console.log(handlers)
+            // console.log(name)
+
+            return <Component {...props} {...context} />
+          }
+        }
+      </Context.Consumer>
     )
   }
 }
 
-const Child = withContext((props) => {
-  return (
-    <span>{props.counter}</span>
-  )
-})
-
-const Button = React.memo(() => {
-  console.log('button')
-  return <button>Click</button>
-})
-
-function handleClick () {
-  console.log('aze')
+function Child(props) {
+  return <div>{props.children}</div>
 }
 
+const Element1 = withNavigation(Child)
+const Element2 = withNavigation(Child)
+
 function App() {
-  console.log('App')
-  const [counter, setCounter] = React.useState(10);
-  const [text, setText] = React.useState("");
-
-  React.useEffect(() => {
-    const intervalId = setInterval(() => {
-      setCounter(counter => counter - 1)
-    }, 1000)
-
-    return () => {
-      clearInterval(intervalId)
-    }
-  }, [])
-
   return (
-    <Context.Provider value={{ counter, text }}>
-      <input value={text} onChange={e => setText(e.target.value)} />
-      <Child />
-      <Button onClick={handleClick} />
-    </Context.Provider>
-  );
+    <NavigationProvider>
+      <Element1 name="one" down="two">
+        Element 1
+      </Element1>
+      
+      <Element2 name="two" up="one">
+        Element 2
+      </Element2>
+    </NavigationProvider>
+  )
 }
 
 export default App;
