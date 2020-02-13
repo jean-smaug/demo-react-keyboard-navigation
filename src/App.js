@@ -43,21 +43,12 @@ function NavigationProvider(props) {
 
 function Child(props) {
   const ctx = React.useContext(Context);
-  const [focus, setFocus] = React.useState(false);
+  const focus = ctx.focus === props.name;
 
   const { name, up, down } = props;
   React.useEffect(() => {
     ctx.registerKey({ name, up, down });
   }, []); // eslint-disable-line
-
-  React.useEffect(() => {
-    if (ctx.focus === props.name) {
-      setFocus(focus => !focus);
-    }
-    if (focus && ctx.focus !== props.name) {
-      setFocus(focus => !focus);
-    }
-  }, [ctx.focus]); // eslint-disable-line
 
   return React.useMemo(() => {
     return (
