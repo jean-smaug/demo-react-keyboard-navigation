@@ -1,6 +1,6 @@
 import React from "react";
 
-const Context = React.createContext(null);
+const NavigationContext = React.createContext(null);
 
 const allowdedKeys = ["ArrowUp", "ArrowDown"];
 
@@ -10,10 +10,15 @@ function NavigationProvider(props) {
 
   React.useEffect(() => {
     function handleKeyDown(e) {
-      if (!allowdedKeys.includes(e.key)) return;
       const eventName = e.key.substring(5, e.key.length).toLowerCase();
 
-      const key = keys.find(key => key.name === focusedItem);
+      const key = keys.find((key) => key.name === focusedItem);
+
+      if (e.key === "Enter") {
+        key.enter();
+      }
+
+      if (!allowdedKeys.includes(e.key)) return;
 
       const target = key[eventName];
       if (!!target) {
@@ -29,30 +34,32 @@ function NavigationProvider(props) {
   }, [keys, focusedItem]); // eslint-disable-line
 
   function registerKey(newKey) {
-    setKeys(keys => [...keys, newKey]);
+    setKeys((keys) => [...keys, newKey]);
   }
 
   return (
-    <Context.Provider
+    <NavigationContext.Provider
       value={{ focus: focusedItem, setFocusedItem, registerKey }}
     >
       {props.children}
-    </Context.Provider>
+    </NavigationContext.Provider>
   );
 }
 
 function Child(props) {
-  const ctx = React.useContext(Context);
-  const focus = ctx.focus === props.name;
+  const navigationContext = React.useContext(NavigationContext);
+  const focus = navigationContext.focus === props.name;
 
-  const { name, up, down } = props;
+  const { name, up, down, enter } = props;
   React.useEffect(() => {
-    ctx.registerKey({ name, up, down });
+    navigationContext.registerKey({ name, up, down, enter });
   }, []); // eslint-disable-line
 
   return React.useMemo(() => {
     return (
-      <div style={{ color: focus ? "blue" : "red" }}>{props.children}</div>
+      <div style={{ outline: focus ? "1px solid blue" : null }}>
+        {props.children}
+      </div>
     );
   }, [focus]); // eslint-disable-line
 }
@@ -62,8 +69,8 @@ function App() {
 
   React.useEffect(() => {
     fetch("https://jsonplaceholder.typicode.com/users")
-      .then(response => response.json())
-      .then(json => {
+      .then((response) => response.json())
+      .then((json) => {
         setUsers(json);
       });
   }, []);
@@ -79,6 +86,7 @@ function App() {
             name={`user-${user.id}`}
             down={users[index + 1] ? `user-${users[index + 1].id}` : null}
             up={users[index - 1] ? `user-${users[index - 1].id}` : null}
+            enter={() => console.log(user.id)}
           >
             {user.name}
           </Child>
