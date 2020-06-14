@@ -1,27 +1,36 @@
 import React from "react";
 
+import "./App.css";
+
 const NavigationContext = React.createContext(null);
 
-const allowdedKeys = ["ArrowUp", "ArrowDown"];
+const EVENTS_MAP = {
+  ArrowUp: "up",
+  ArrowDown: "down",
+  ArrowRight: "right",
+  ArrowLeft: "left",
+  Enter: "enter",
+};
 
 function NavigationProvider(props) {
   const [focusedItem, setFocusedItem] = React.useState(props.defaultFocus);
-  const [keys, setKeys] = React.useState([]);
+  const [items, setItems] = React.useState([]);
 
   React.useEffect(() => {
     function handleKeyDown(e) {
-      const eventName = e.key.substring(5, e.key.length).toLowerCase();
+      if (!Object.keys(EVENTS_MAP).includes(e.code)) return;
 
-      const key = keys.find((key) => key.name === focusedItem);
+      const eventName = EVENTS_MAP[e.code];
 
-      if (e.key === "Enter") {
-        key.enter();
-      }
-
-      if (!allowdedKeys.includes(e.key)) return;
+      const key = items.find((key) => key.name === focusedItem);
 
       const target = key[eventName];
+
       if (!!target) {
+        if (typeof target === "function") {
+          return target();
+        }
+
         setFocusedItem(target);
       }
     }
@@ -31,68 +40,102 @@ function NavigationProvider(props) {
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [keys, focusedItem]); // eslint-disable-line
+  }, [items, focusedItem]); // eslint-disable-line
 
-  function registerKey(newKey) {
-    setKeys((keys) => [...keys, newKey]);
+  function registerItem(newItem) {
+    setItems((items) => [...items, newItem]);
+  }
+
+  function unregisterItem(itemToDelete) {
+    setItems((items) =>
+      items.filter((item) => itemToDelete.name !== item.name)
+    );
   }
 
   return (
     <NavigationContext.Provider
-      value={{ focus: focusedItem, setFocusedItem, registerKey }}
+      value={{ focus: focusedItem, registerItem, unregisterItem }}
     >
       {props.children}
     </NavigationContext.Provider>
   );
 }
 
-function Child(props) {
-  const navigationContext = React.useContext(NavigationContext);
-  const focus = navigationContext.focus === props.name;
+function useIsFocused(props) {
+  const { focus, registerItem, unregisterItem } = React.useContext(
+    NavigationContext
+  );
 
-  const { name, up, down, enter } = props;
+  const { name } = props;
+  const isFocused = focus === name;
+
   React.useEffect(() => {
-    navigationContext.registerKey({ name, up, down, enter });
+    const eventKeys = Object.values(EVENTS_MAP).reduce(
+      (acc, value) => ({
+        ...acc,
+        [value]: props[value],
+      }),
+      {}
+    );
+
+    const eventKeysWithName = { ...eventKeys, name: props.name };
+
+    registerItem(eventKeysWithName);
+
+    return () => unregisterItem(eventKeysWithName);
   }, []); // eslint-disable-line
+
+  return isFocused;
+}
+
+function ListItem(props) {
+  const isFocused = useIsFocused(props);
 
   return React.useMemo(() => {
     return (
-      <div style={{ outline: focus ? "1px solid blue" : null }}>
+      <li
+        className="List__Item"
+        style={{
+          boxShadow: isFocused ? "#373737 0px 4px 9px -3px" : null,
+        }}
+      >
         {props.children}
-      </div>
+      </li>
     );
-  }, [focus]); // eslint-disable-line
+  }, [isFocused]); // eslint-disable-line
 }
 
 function App() {
-  const [users, setUsers] = React.useState([]);
-
-  React.useEffect(() => {
-    fetch("https://jsonplaceholder.typicode.com/users")
-      .then((response) => response.json())
-      .then((json) => {
-        setUsers(json);
-      });
-  }, []);
-
-  if (users.length === 0) return "Loading...";
+  const [choice, setChoice] = React.useState(null);
 
   return (
-    <div style={{ margin: "20px" }}>
-      <NavigationProvider defaultFocus={`user-${users[0].id}`}>
-        {users.map((user, index) => (
-          <Child
-            key={`user-${user.id}`}
-            name={`user-${user.id}`}
-            down={users[index + 1] ? `user-${users[index + 1].id}` : null}
-            up={users[index - 1] ? `user-${users[index - 1].id}` : null}
-            enter={() => console.log(user.id)}
+    <>
+      <ul className="List">
+        <NavigationProvider defaultFocus="pizza">
+          <ListItem name="pizza" right="pasta" enter={() => setChoice("pizza")}>
+            Pizza
+          </ListItem>
+
+          <ListItem
+            name="pasta"
+            right="lasagna"
+            left="pizza"
+            enter={() => setChoice("pasta")}
           >
-            {user.name}
-          </Child>
-        ))}
-      </NavigationProvider>
-    </div>
+            Pasta
+          </ListItem>
+
+          <ListItem
+            name="lasagna"
+            left="pasta"
+            enter={() => setChoice("lasagna")}
+          >
+            Lasagna
+          </ListItem>
+        </NavigationProvider>
+      </ul>
+      <span>You choosed : {choice ? choice : "nothing"}</span>
+    </>
   );
 }
 
