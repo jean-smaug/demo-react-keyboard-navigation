@@ -37,9 +37,7 @@ function NavigationProvider(props) {
 
     document.addEventListener("keydown", handleKeyDown);
 
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-    };
+    return () => document.removeEventListener("keydown", handleKeyDown);
   }, [items, focusedItem]); // eslint-disable-line
 
   function registerItem(newItem) {
@@ -70,19 +68,20 @@ function useIsFocused(props) {
   const isFocused = focus === name;
 
   React.useEffect(() => {
-    const eventKeys = Object.values(EVENTS_MAP).reduce(
-      (acc, value) => ({
+    const eventKeys = Object.values(EVENTS_MAP).reduce((acc, value) => {
+      return {
         ...acc,
         [value]: props[value],
-      }),
-      {}
-    );
+      };
+    }, {});
 
-    const eventKeysWithName = { ...eventKeys, name: props.name };
+    const eventKeysWithName = { ...eventKeys, name };
 
     registerItem(eventKeysWithName);
 
-    return () => unregisterItem(eventKeysWithName);
+    return () => {
+      unregisterItem(eventKeysWithName);
+    };
   }, []); // eslint-disable-line
 
   return isFocused;
@@ -107,6 +106,13 @@ function ListItem(props) {
 
 function App() {
   const [choice, setChoice] = React.useState(null);
+  // const [isVisible, setVisibleStatus] = React.useState(true);
+
+  // React.useEffect(() => {
+  //   setTimeout(() => {
+  //     setVisibleStatus(false);
+  //   }, 1000);
+  // }, []);
 
   return (
     <>
